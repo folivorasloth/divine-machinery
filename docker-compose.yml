@@ -1,0 +1,30 @@
+# Roda no homelab: broker MQTT + o processo do grilo, 24h.
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: dm-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # MQTT via WebSocket
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+
+  grilo:
+    build: .
+    container_name: dm-grilo
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    environment:
+      # Dentro da rede do Docker o broker é achado pelo nome do serviço,
+      # então isso sobrescreve o mqtt.host do config.yaml.
+      MQTT_HOST: mosquitto
+      TZ: America/Sao_Paulo
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./persona:/app/persona:ro
+
+volumes:
+  mosquitto-data:

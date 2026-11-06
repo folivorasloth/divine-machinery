@@ -1,0 +1,9 @@
+# Config real (tem IPs da sua rede) — só o config.example.yaml vai pro git
+config.yaml
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+*.wav

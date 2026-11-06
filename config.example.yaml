@@ -1,0 +1,69 @@
+# Copie para config.yaml e ajuste para a sua rede:
+#   cp config.example.yaml config.yaml
+# O config.yaml fica fora do git (está no .gitignore).
+# Cada máquina tem a sua cópia; cada uma só usa as seções que lhe interessam.
+
+mqtt:
+  host: 192.168.0.10        # IP do homelab (no Docker é sobrescrito por MQTT_HOST)
+  port: 1883
+
+ollama:
+  url: http://192.168.0.20:11434   # notebook do LLM
+  model: qwen2.5:7b                # qualquer modelo que você tenha baixado
+  timeout_seconds: 8               # passou disso → fallback por templates
+  offline_cooldown_seconds: 60     # depois de uma falha, nem tenta por esse tempo
+  temperature: 0.9
+  keep_alive: 30m                  # mantém o modelo na memória (o 1º carregamento é lento)
+
+grilo:
+  persona_file: persona/grilo.yaml
+  short_memory: 10       # últimas N mensagens que entram no contexto do LLM
+  recent_activity: 5     # últimos N apps que entram no contexto
+  tick_seconds: 5        # de quanto em quanto tempo aplica decaimento e publica humor
+
+mood:
+  baseline:              # para onde os valores voltam com o tempo (0–100)
+    irritacao: 15
+    orgulho: 50
+    energia: 60
+  decay_per_minute: 1.0  # pontos por minuto em direção à base
+  irritation_limit: 80   # acima disso ele retruca (orgulho alto) ou emburra (orgulho baixo)
+  pride_high: 60         # a partir de quanto o orgulho é "alto"
+  sulk_minutes: 10       # quanto tempo fica emburrado
+
+triggers:
+  global_max_per_hour: 6         # máximo de falas espontâneas por hora, somando todos
+  long_session:
+    hours: 2                     # tempo contínuo no mesmo app
+    cooldown_minutes: 60
+  back_from_afk:
+    min_afk_minutes: 15          # só comenta se ficou fora pelo menos isso
+    cooldown_minutes: 30
+  late_night:
+    start: "00:30"               # pode virar a meia-noite (ex.: 23:00 → 05:00)
+    end: "05:00"
+    cooldown_minutes: 45
+  distraction:
+    cooldown_minutes: 20
+    match:                       # procura no nome do app e no título da janela
+      - youtube
+      - twitter
+      - instagram
+      - reddit
+      - tiktok
+      - netflix
+      - steam
+
+tts:                     # usado pelo cli/chat.py (e pelo --offline), na máquina com caixa de som
+  enabled: false
+  model: ~/piper/pt_BR-faber-medium.onnx
+  # {model} e {wav} são substituídos; o texto vai pelo stdin.
+  # Piper "clássico" (binário do GitHub): piper --model {model} --output_file {wav}
+  # Pacote pip piper-tts (piper1-gpl):    python -m piper -m {model} -f {wav}
+  synth_command: "piper --model {model} --output_file {wav}"
+  play_command: "aplay -q {wav}"   # macOS: "afplay {wav}"; PulseAudio: "paplay {wav}"
+
+publisher:               # roda no notebook pessoal
+  activitywatch_url: http://localhost:5600
+  interval_seconds: 30
+  hostname: null         # null = usa o nome desta máquina para achar os buckets do AW
