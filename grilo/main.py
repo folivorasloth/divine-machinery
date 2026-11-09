@@ -22,6 +22,7 @@ from datetime import datetime
 
 from common.bus import FakeBus, MqttBus
 from common.config import load_config, load_yaml
+from common.language import detect_language
 from common.messages import (ACTIVITY, AFK, USER_SPEECH, make_message, npc_topic,
                              parse_json, parse_message)
 from common.tts import Speaker
@@ -52,6 +53,9 @@ class Grilo:
         self.recent_apps: deque[str] = deque(maxlen=settings.get("recent_activity", 5))
         self.activity: dict | None = None
         self.afk: dict | None = None
+        # Idioma da conversa: muda quando o João muda; os comentários
+        # espontâneos usam o último idioma que ele falou.
+        self.lang: str = self.persona.get("default_language", "pt")
 
         self.inbox: queue.Queue[tuple[str, str]] = queue.Queue()
         self._last_mood: dict | None = None
@@ -105,10 +109,14 @@ class Grilo:
         if not text:
             return
         log.info("João disse: %s", text)
+        lang = detect_language(text, self.lang)
+        if lang != self.lang:
+            log.info("idioma: %s → %s", self.lang, lang)
+            self.lang = lang
         category = self.fallback.category(text)
         self.mood.apply(self.effects.get(category, {}), f"fala do João ({category})")
         decision = self.brain.reply(text, category, self.mood, list(self.history),
-                                    self._activity_summary(), self._variables())
+                                    self._activity_summary(), self._variables(), self.lang)
         self.history.append({"role": "user", "content": text})
         self._say(decision)
 
@@ -137,7 +145,7 @@ class Grilo:
         self.mood.apply(self.effects.get(event.name, {}), f"gatilho {event.name}")
         decision = self.brain.spontaneous(event, self.mood, list(self.history),
                                           self._activity_summary(),
-                                          {**self._variables(), **event.variables})
+                                          {**self._variables(), **event.variables}, self.lang)
         self._say(decision, trigger=event.name)
 
     def _say(self, decision: Decision, trigger: str | None = None) -> None:
@@ -148,7 +156,8 @@ class Grilo:
         self.bus.publish(
             npc_topic(NPC_ID, "fala"),
             make_message(NPC_ID, decision.text, source=decision.source,
-                         reason=decision.reason, trigger=trigger, mood=self.mood.state()),
+                         reason=decision.reason, trigger=trigger, mood=self.mood.state(),
+                         lang=self.lang),
         )
         self.publish_mood()
 
@@ -221,9 +230,9 @@ def run_offline(config: dict) -> None:
     speaker = Speaker(config.get("tts", {}))
 
     def show(topic: str, payload: str) -> None:
-        text = parse_message(payload)["text"]
-        print(f"🦗 grilo> {text}")
-        speaker.say(text)
+        msg = parse_message(payload)
+        print(f"🦗 grilo> {msg['text']}")
+        speaker.say(msg["text"], msg["meta"].get("lang"))
 
     bus.subscribe(npc_topic(NPC_ID, "fala"), show)
     grilo.start()

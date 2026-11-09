@@ -12,7 +12,8 @@ from datetime import datetime
 from datetime import time as dtime
 
 from grilo.brain import TriggerEvent
-from grilo.fallback import format_duration, normalize
+from common.text import normalize
+from grilo.fallback import format_duration
 
 log = logging.getLogger("triggers")
 

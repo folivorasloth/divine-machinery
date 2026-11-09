@@ -39,9 +39,10 @@ def main() -> None:
 
     def on_speech(topic: str, payload: str) -> None:
         npc = topic.split("/")[1]
-        text = parse_message(payload)["text"]
+        msg = parse_message(payload)
+        text = msg["text"]
         _print_above_prompt(f"🦗 {npc}> {text}" if npc == "grilo" else f"{npc}> {text}")
-        speaker.say(text)
+        speaker.say(text, msg["meta"].get("lang"))
 
     def on_status(topic: str, payload: str) -> None:
         _print_above_prompt(f"[{topic.split('/')[1]} está {payload}]")

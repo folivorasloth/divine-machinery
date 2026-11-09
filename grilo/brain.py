@@ -39,26 +39,28 @@ class Brain:
         self.sulk_silence_chance = persona.get("sulk_silence_chance", 0.5)
 
     def reply(self, user_text: str, category: str, mood: Mood, history: list[dict],
-              activity_summary: str, variables: dict) -> Decision:
+              activity_summary: str, variables: dict, lang: str = "pt") -> Decision:
         """Resposta a algo que o João disse."""
         state = mood.state()
         if state == SULKING:
             if self.rng.random() < self.sulk_silence_chance:
                 return Decision(None, "silencio", "emburrado → ignorou")
-            text = self.fallback.pick("emburrado", variables) or "hmpf."
+            text = self.fallback.pick("emburrado", variables, lang) or "hmpf."
             return Decision(text, "emburrado", "emburrado → hmpf")
 
-        messages = self._build_messages(mood, history, activity_summary, user_text)
+        messages = self._build_messages(mood, history, activity_summary, user_text, lang)
         text = self.llm.chat(messages)
         if text:
-            return Decision(_clean(text), "llm", f"LLM respondeu (categoria {category}, estado {state})")
+            return Decision(_clean(text), "llm",
+                            f"LLM respondeu (categoria {category}, estado {state}, idioma {lang})")
 
         key = "retruque" if state == COMEBACK else category
-        text = self.fallback.reply(key, variables, llm_down=True)
-        return Decision(text, "fallback", f"LLM {self.llm.last_error} → fallback categoria {key}")
+        text = self.fallback.reply(key, variables, lang, llm_down=True)
+        return Decision(text, "fallback",
+                        f"LLM {self.llm.last_error} → fallback categoria {key} ({lang})")
 
     def spontaneous(self, event: TriggerEvent, mood: Mood, history: list[dict],
-                    activity_summary: str, variables: dict) -> Decision:
+                    activity_summary: str, variables: dict, lang: str = "pt") -> Decision:
         """Comentário por conta própria, disparado por um gatilho de atividade."""
         if mood.is_sulking():
             return Decision(None, "silencio", f"gatilho {event.name}, mas está emburrado")
@@ -69,17 +71,17 @@ class Brain:
             f"[EVENTO — não é fala do João] {event.description}. "
             "Faça um comentário espontâneo e curto sobre isso, direto para o João."
         )
-        text = self.llm.chat(self._build_messages(mood, history, activity_summary, instruction))
+        text = self.llm.chat(self._build_messages(mood, history, activity_summary, instruction, lang))
         if text:
             return Decision(_clean(text), "llm", f"gatilho {event.name} → LLM")
 
-        text = self.fallback.pick(event.name, variables)
+        text = self.fallback.pick(event.name, variables, lang)
         if not text:
             return Decision(None, "silencio", f"gatilho {event.name}: LLM {self.llm.last_error} e sem template")
         return Decision(text, "fallback", f"gatilho {event.name}: LLM {self.llm.last_error} → template")
 
     def _build_messages(self, mood: Mood, history: list[dict], activity_summary: str,
-                        user_content: str) -> list[dict]:
+                        user_content: str, lang: str = "pt") -> list[dict]:
         persona = self.persona
         parts = [persona.get("system_prompt", "").strip()]
 
@@ -102,6 +104,8 @@ class Brain:
         parts.append(f"Agora são {datetime.fromtimestamp(mood.clock()):%H:%M}.")
         if activity_summary:
             parts.append(f"O que o João está fazendo no computador: {activity_summary}")
+        # Por último de propósito: a instrução final é a que o modelo mais respeita.
+        parts.append((persona.get("language_instructions") or {}).get(lang, ""))
 
         system = "\n\n".join(p for p in parts if p)
         return [{"role": "system", "content": system}, *history,

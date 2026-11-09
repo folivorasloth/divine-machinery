@@ -1,19 +1,15 @@
 """Respostas sem LLM: detecção de categoria por palavras-chave + templates.
 
-Tudo (palavras-chave e frases) vem do persona/grilo.yaml.
+Tudo (palavras-chave e frases) vem do persona/grilo.yaml. Os templates ficam
+separados por idioma: templates.pt.insulto, templates.en.insulto...
 """
 
 import random
 import re
-import unicodedata
+
+from common.text import normalize
 
 DEFAULT_CATEGORY = "generico"
-
-
-def normalize(text: str) -> str:
-    """Minúsculas e sem acento: "Só fala BOSTA" → "so fala bosta"."""
-    decomposed = unicodedata.normalize("NFKD", text.lower())
-    return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
 def detect_category(text: str, keywords: dict[str, list[str]]) -> str:
@@ -59,25 +55,33 @@ def fill(template: str, variables: dict) -> str:
 class Fallback:
     def __init__(self, persona: dict, rng: random.Random | None = None):
         self.keywords = persona.get("categories", {})
-        self.templates = persona.get("templates", {})
+        self.templates = persona.get("templates", {})  # {idioma: {chave: [frases]}}
+        self.default_language = persona.get("default_language", "pt")
         self.oracle_chance = persona.get("oracle_absent_chance", 0.2)
         self.rng = rng or random.Random()
 
     def category(self, text: str) -> str:
         return detect_category(text, self.keywords)
 
-    def pick(self, key: str, variables: dict) -> str | None:
-        """Sorteia um template da lista `key` e preenche as variáveis."""
-        options = self.templates.get(key) or []
+    def pick(self, key: str, variables: dict, lang: str | None = None) -> str | None:
+        """Sorteia um template da lista `key` no idioma pedido e preenche as variáveis.
+        Se faltar a lista naquele idioma, usa a do idioma padrão."""
+        options = (self._templates(lang).get(key)
+                   or self._templates(self.default_language).get(key) or [])
         if not options:
             return None
         return fill(self.rng.choice(options), variables)
 
-    def reply(self, key: str, variables: dict, llm_down: bool = True) -> str:
-        text = self.pick(key, variables) or self.pick(DEFAULT_CATEGORY, variables) or "..."
+    def _templates(self, lang: str | None) -> dict:
+        return self.templates.get(lang or self.default_language) or {}
+
+    def reply(self, key: str, variables: dict, lang: str | None = None,
+              llm_down: bool = True) -> str:
+        text = (self.pick(key, variables, lang)
+                or self.pick(DEFAULT_CATEGORY, variables, lang) or "...")
         # De vez em quando ele comenta que está sem o LLM.
         if llm_down and self.rng.random() < self.oracle_chance:
-            note = self.pick("oraculo_ausente", variables)
+            note = self.pick("oraculo_ausente", variables, lang)
             if note:
                 text = f"{text} {note}"
         return text

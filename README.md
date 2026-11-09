@@ -3,8 +3,10 @@
 Um ecossistema de personagens (NPCs) que vivem no meu ambiente, conversam entre si
 e reagem ao que eu faço. Todos se comunicam por um broker MQTT. Tudo local, nada de nuvem.
 
-O primeiro personagem é o **Grilo Falante**: sarcástico, debochado e filosófico.
-Ele zoa, mas acerta na crítica.
+O primeiro personagem é o **Grilo Falante**: um grilo britânico esnobe, "educado em Oxford",
+preso no seu computador e sussurrando comentários no seu ouvido. Sarcástico, filosófico e
+impecavelmente condescendente: ele zoa, mas acerta na crítica. Fala português (com pitadas
+de inglês) e troca para inglês britânico quando você fala em inglês.
 
 ```
  Notebook pessoal                      Homelab (VM Ubuntu + Docker)           Notebook do LLM
@@ -41,6 +43,8 @@ mosquitto/mosquitto.conf  listener 1883 + websocket 9001, anônimo (só rede loc
 config.example.yaml       modelo de configuração → copie para config.yaml
 common/                   compartilhado por todos os NPCs
   config.py               carrega config.yaml
+  language.py             detecta português x inglês
+  text.py                 normalização de texto (acentos, minúsculas)
   bus.py                  MqttBus (paho 2.x) e FakeBus (em memória, p/ --offline)
   messages.py             tópicos e formato das mensagens
   tts.py                  Piper (opcional)
@@ -219,8 +223,15 @@ que chega em `npc/+/fala`, inclusive os comentários espontâneos.
 1. Baixe o binário do [Piper](https://github.com/rhasspy/piper/releases) (ou `pip install piper-tts`).
 2. Baixe uma voz pt_BR, por exemplo `pt_BR-faber-medium.onnx` e o `.onnx.json` correspondente, em
    [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main/pt/pt_BR).
-3. No `config.yaml`: `tts.enabled: true`, `tts.model` com o caminho da voz e, se precisar,
-   ajuste `synth_command`/`play_command` (há exemplos comentados no arquivo).
+3. Para o inglês, baixe uma voz `en_GB` (ex.: `en_GB-alan-medium`, em
+   [en/en_GB](https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB)). Ouça as opções em
+   [piper-samples](https://rhasspy.github.io/piper-samples).
+4. No `config.yaml`: `tts.enabled: true`, `tts.models.pt` e `tts.models.en` com os caminhos das vozes e,
+   se precisar, ajuste `synth_command`/`play_command` (há exemplos comentados no arquivo).
+
+Cada fala chega com o idioma em `meta.lang`, e o chat escolhe a voz certa. Não existe voz do Piper
+de "britânico falando português"; para experimentar o efeito, aponte `tts.models.pt` para a voz
+`en_GB` (o sotaque fica forte, e às vezes a fala fica difícil de entender).
 
 Teste rápido sem MQTT: `python -m grilo.main --offline` com o TTS ligado.
 
@@ -257,10 +268,18 @@ mosquitto_pub -h IP_DO_HOMELAB -t joao/fala -m "esse grilo só fala bosta"
 Cada um tem um `cooldown_minutes`, e há um teto global `global_max_per_hour`. Dispara no
 máximo um gatilho por atualização. Emburrado, ele ignora os gatilhos.
 
+## Idioma
+
+`common/language.py` conta palavras comuns de cada língua na sua fala ("the", "you", "what" x "que",
+"você", "não", e acentos). Quem tiver mais vence; empate ("ok", "kkkk") mantém o idioma atual. O grilo
+responde no idioma detectado, e os comentários espontâneos saem no último idioma que você usou.
+- **Com LLM:** a última instrução do prompt diz o idioma (`language_instructions` na persona).
+- **Sem LLM:** os templates usados são os do bloco daquele idioma (`templates.pt` / `templates.en`).
+
 ## Ajustando a personalidade
 
-Tudo fica em `persona/grilo.yaml`, sem mexer em código: prompt de sistema, exemplos, palavras-chave,
-efeitos no humor e templates. O teste `test_real_persona_file_is_valid` verifica se o YAML continua
+Tudo fica em `persona/grilo.yaml`, sem mexer em código: prompt de sistema, instruções de idioma,
+exemplos, palavras-chave (dos dois idiomas), efeitos no humor e templates (um bloco por idioma). O teste `test_real_persona_file_is_valid` verifica se o YAML continua
 válido depois da edição:
 
 ```bash

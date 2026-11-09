@@ -46,17 +46,22 @@ triggers:
   distraction:
     cooldown_minutes: 20
     match:                       # procura no nome do app e no título da janela
-      - youtube
-      - twitter
-      - instagram
-      - reddit
-      - tiktok
-      - netflix
-      - steam
+      - YouTube        # escreva como quer que ele fale; a busca ignora maiúsculas
+      - Twitter
+      - Instagram
+      - Reddit
+      - TikTok
+      - Netflix
+      - Steam
 
 tts:                     # usado pelo cli/chat.py (e pelo --offline), na máquina com caixa de som
   enabled: false
-  model: ~/piper/pt_BR-faber-medium.onnx
+  # Uma voz por idioma (o grilo responde no idioma em que você falou).
+  # Ouça as vozes em https://rhasspy.github.io/piper-samples
+  # Experimento: use a voz en_GB também no "pt" = um inglês falando português com sotaque.
+  models:
+    pt: ~/piper/pt_BR-faber-medium.onnx
+    en: ~/piper/en_GB-alan-medium.onnx
   # {model} e {wav} são substituídos; o texto vai pelo stdin.
   # Piper "clássico" (binário do GitHub): piper --model {model} --output_file {wav}
   # Pacote pip piper-tts (piper1-gpl):    python -m piper -m {model} -f {wav}
