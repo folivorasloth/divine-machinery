@@ -1,0 +1,17 @@
+# Elenco do Divine Machinery: quem é quem.
+# Todo personagem lê este arquivo para saber com quem está falando.
+# A chave é o id usado nos tópicos MQTT (npc/<id>/fala).
+# Para um personagem novo: adicione aqui, mesmo antes de ele existir em código,
+# e os outros já vão reconhecê-lo quando ele falar.
+
+joao:
+  name: João
+  description: o humano da casa. Programador, dono do homelab e de todos vocês.
+
+grilo:
+  name: Grilo Falante
+  description: grilo britânico esnobe, "educado em Oxford", que vive no computador do João e comenta tudo.
+
+# hefesto:                       # planejado: descomente e descreva quando ele existir
+#   name: Hefesto
+#   description: ...

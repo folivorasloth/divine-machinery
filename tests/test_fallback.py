@@ -86,9 +86,16 @@ def test_real_persona_file_is_valid():
         templates = persona["templates"][lang]
         for key in ("insulto", "elogio", "pergunta", "generico", "retruque", "emburrado",
                     "oraculo_ausente", "long_session", "back_from_afk", "late_night",
-                    "distraction"):
+                    "distraction", "direto", "filosofico", "fonte", "fonte_provavel",
+                    "fonte_desconhecida", "npc_reacao"):
             assert templates.get(key), f"faltam templates para {lang}.{key}"
             for template in templates[key]:
                 # fill não pode explodir com chave/format inválido
                 fill(template, {"time": "1", "app": "a", "title": "t", "session": "s",
-                                "afk": "x", "target": "y"})
+                                "afk": "x", "target": "y", "quote": "q", "author": "a",
+                                "work": "w", "npc": "n"})
+        for quote in persona["citacoes"][lang]:
+            assert quote["texto"] and quote["autor"] and quote["obra"]
+    assert fb.category("de quem é essa frase?") == "fonte"
+    assert fb.category("o que você acha do Nietzsche?") == "filosofia"
+    assert set(persona["response_modes"]["normal"]) == {"debochado", "direto", "filosofico"}

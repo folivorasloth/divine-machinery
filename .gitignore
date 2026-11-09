@@ -7,3 +7,7 @@ __pycache__/
 venv/
 .pytest_cache/
 *.wav
+
+# Biblioteca: livros e índice ficam só na sua máquina (direitos autorais + tamanho)
+library/*
+!library/README.md

@@ -41,7 +41,9 @@ def main() -> None:
         npc = topic.split("/")[1]
         msg = parse_message(payload)
         text = msg["text"]
-        _print_above_prompt(f"🦗 {npc}> {text}" if npc == "grilo" else f"{npc}> {text}")
+        to = msg["meta"].get("to")
+        arrow = f" (para {to})" if to and to != "joao" else ""  # conversa entre NPCs
+        _print_above_prompt(f"{'🦗 ' if npc == 'grilo' else ''}{npc}{arrow}> {text}")
         speaker.say(text, msg["meta"].get("lang"))
 
     def on_status(topic: str, payload: str) -> None:

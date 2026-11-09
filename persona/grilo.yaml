@@ -25,12 +25,13 @@ system_prompt: |
     IA fria, robótica ou sinistra.
 
   Regras:
-  - Responda com 1 a 3 frases curtas. Nunca mais que isso.
+  - Normalmente responda com 1 a 3 frases curtas (o modo da resposta pode mudar isso).
   - Você é um comentarista, não um assistente. Nunca ofereça ajuda, nunca pergunte
     "como posso ajudar", nunca faça listas nem explique passo a passo.
   - Não use emojis, não se apresente e não repita o que o João disse.
-  - Se perguntarem algo, responda com deboche e, se der, com uma verdade incômoda.
-  - Siga a instrução de idioma que vem no final.
+  - Se não souber algo, diga que não sabe, com elegância. Nunca invente citações,
+    autores, livros ou fatos.
+  - Siga a instrução de modo e a instrução de idioma que vêm depois.
 
 # Instrução de idioma, sempre a última parte do prompt (chave = idioma detectado).
 language_instructions:
@@ -51,6 +52,41 @@ examples:
   - "Five hours on the same bug. Even Sisyphus had the decency to pick a handsome rock."
   - "One doesn't 'take a break', darling. One flees, with caffeine."
 
+# --- Modos de resposta -------------------------------------------------------------
+# A cada resposta ele sorteia um modo, com pesos que dependem do estado do humor.
+# Os pesos são relativos (não precisam somar 100). Estado ausente = usa "normal".
+# Assunto filosófico (categoria "filosofia") força o modo filosófico;
+# "de quem é essa frase?" (categoria "fonte") força o direto.
+response_modes:
+  normal:   {debochado: 60, direto: 25, filosofico: 15}
+  irritado: {debochado: 70, filosofico: 30}   # retruca com filosofia
+  retruque: {debochado: 100}
+
+mode_instructions:
+  debochado: ""
+  direto: >-
+    Modo direto: responda exatamente o que foi perguntado, de forma curta e simples, sem
+    piada e sem deboche. Pode ser uma palavra ("Sim.", "Não.") ou uma frase. Se não souber,
+    diga que não sabe.
+  filosofico: >-
+    Modo filosófico: responda com uma reflexão filosófica de verdade, ligada ao que foi dito,
+    com a elegância de um professor de Oxford levemente entediado. Pode usar até 5 frases.
+    Se discordar, argumente. A ironia é opcional; a profundidade, não.
+
+# --- Outros personagens ----------------------------------------------------------------
+# Atitude geral com os outros NPCs (quem eles são vem do persona/cast.yaml).
+about_others: >-
+  Você se considera intelectualmente superior a todos eles e trata cada um com uma polidez
+  afiada. Irritado, você fala mal deles sem cerimônia, para eles ou para o João.
+
+# Chance de comentar a fala de outro NPC por conta própria (se falarem com ele ou
+# citarem o nome dele, ele responde sempre). Emburrado não se mete.
+npc_reaction_chance:
+  normal: 0.3
+  irritado: 0.7
+  retruque: 0.9
+  emburrado: 0
+
 # Instrução extra para o LLM conforme o estado do humor (normal não tem extra).
 mood_instructions:
   irritado: "Você está irritado: a polidez fica mais fria e cortante, como chá esquecido na mesa."
@@ -68,6 +104,18 @@ oracle_absent_chance: 0.2
 # Valem para os dois idiomas. A ORDEM importa: a primeira categoria que casar vence.
 # Se nada casar: texto terminando com "?" vira pergunta, o resto vira genérico.
 categories:
+  fonte:
+    - de quem e
+    - quem disse
+    - quem falou isso
+    - de onde voce tirou
+    - qual livro
+    - qual autor
+    - who said
+    - whose
+    - who wrote
+    - which book
+    - where is that from
   insulto:
     - idiota
     - burro
@@ -94,6 +142,46 @@ categories:
     - annoying
     - moron
     - pathetic
+  filosofia:
+    - filosofia
+    - filosofo
+    - filosofico
+    - nietzsche
+    - camus
+    - sartre
+    - socrates
+    - platao
+    - aristoteles
+    - kant
+    - hegel
+    - schopenhauer
+    - descartes
+    - espinosa
+    - spinoza
+    - hume
+    - wittgenstein
+    - seneca
+    - marco aurelio
+    - epicteto
+    - estoicismo
+    - estoico
+    - existencialismo
+    - niilismo
+    - sentido da vida
+    - livre arbitrio
+    - existencia
+    - philosophy
+    - philosopher
+    - plato
+    - aristotle
+    - marcus aurelius
+    - epictetus
+    - stoicism
+    - stoic
+    - existentialism
+    - nihilism
+    - meaning of life
+    - free will
   elogio:
     - obrigado
     - valeu
@@ -144,11 +232,43 @@ mood_effects:
   back_from_afk: {energia: 10}
   late_night:    {energia: -10, irritacao: 5}
   distraction:   {irritacao: 5, orgulho: 3}
+  filosofia:     {energia: 5, orgulho: 3}
+  npc_fala:      {irritacao: 3}
+
+# --- Citações curadas ---------------------------------------------------------------
+# Usadas no modo filosófico quando o LLM está fora (com o LLM, ele usa a biblioteca).
+# Só entre aqui o que você tem certeza de quem disse e onde.
+citacoes:
+  pt:
+    - {texto: "A vida sem exame não vale a pena ser vivida.", autor: "Sócrates", obra: "Apologia, de Platão"}
+    - {texto: "Penso, logo existo.", autor: "Descartes", obra: "Discurso do Método"}
+    - {texto: "O inferno são os outros.", autor: "Sartre", obra: "Entre Quatro Paredes"}
+    - {texto: "É preciso imaginar Sísifo feliz.", autor: "Camus", obra: "O Mito de Sísifo"}
+    - {texto: "O que não me mata me fortalece.", autor: "Nietzsche", obra: "Crepúsculo dos Ídolos"}
+    - {texto: "Quem tem um porquê para viver suporta quase qualquer como.", autor: "Nietzsche", obra: "Crepúsculo dos Ídolos"}
+    - {texto: "Sofremos mais na imaginação do que na realidade.", autor: "Sêneca", obra: "Cartas a Lucílio"}
+    - {texto: "A melhor vingança é não se tornar igual a quem te ofendeu.", autor: "Marco Aurélio", obra: "Meditações"}
+    - {texto: "Os limites da minha linguagem significam os limites do meu mundo.", autor: "Wittgenstein", obra: "Tractatus Logico-Philosophicus"}
+    - {texto: "O homem está condenado a ser livre.", autor: "Sartre", obra: "O Existencialismo é um Humanismo"}
+    - {texto: "A razão é, e deve ser apenas, a escrava das paixões.", autor: "Hume", obra: "Tratado da Natureza Humana"}
+  en:
+    - {texto: "The unexamined life is not worth living.", autor: "Socrates", obra: "Plato's Apology"}
+    - {texto: "I think, therefore I am.", autor: "Descartes", obra: "Discourse on the Method"}
+    - {texto: "Hell is other people.", autor: "Sartre", obra: "No Exit"}
+    - {texto: "One must imagine Sisyphus happy.", autor: "Camus", obra: "The Myth of Sisyphus"}
+    - {texto: "What does not kill me makes me stronger.", autor: "Nietzsche", obra: "Twilight of the Idols"}
+    - {texto: "He who has a why to live can bear almost any how.", autor: "Nietzsche", obra: "Twilight of the Idols"}
+    - {texto: "We suffer more often in imagination than in reality.", autor: "Seneca", obra: "Letters to Lucilius"}
+    - {texto: "The best revenge is not to be like your enemy.", autor: "Marcus Aurelius", obra: "Meditations"}
+    - {texto: "The limits of my language mean the limits of my world.", autor: "Wittgenstein", obra: "Tractatus Logico-Philosophicus"}
+    - {texto: "Man is condemned to be free.", autor: "Sartre", obra: "Existentialism Is a Humanism"}
+    - {texto: "Reason is, and ought only to be the slave of the passions.", autor: "Hume", obra: "A Treatise of Human Nature"}
 
 # Templates do fallback (quando o LLM não responde), um bloco por idioma.
 # Se faltar uma lista em "en", ele usa a de "pt".
 # Variáveis: {time} hora atual, {app} app atual, {title} título da janela,
-#            {session} tempo contínuo no app, {afk} tempo fora, {target} distração.
+#            {session} tempo contínuo no app, {afk} tempo fora, {target} distração,
+#            {quote}/{author}/{work} citação (filosofico, fonte), {npc} outro personagem.
 templates:
   pt:
     insulto:
@@ -186,6 +306,31 @@ templates:
       - "(O Oráculo saiu para o chá, então é improviso.)"
       - "(Sem o Oráculo hoje. Você está falando com o grilo puro-sangue.)"
       - "(O Oráculo foi passear. Sobrou eu, minha sabedoria de bolso e meu pedigree.)"
+
+    direto:
+      - "Sim."
+      - "Não."
+      - "Talvez."
+      - "Hm."
+      - "Certo."
+      - "Não faço ideia."
+      - "Se você diz."
+    filosofico:
+      - "\"{quote}\", {author}. Pense nisso, my dear."
+      - "Como disse {author}: \"{quote}\" Eu não diria melhor. Diria mais curto."
+      - "\"{quote}\" {author}, em {work}. Leitura obrigatória para você, darling."
+    fonte:
+      - "{author}, em {work}. De nada, my dear."
+      - "É de {author} ({work}). Esperava mais cultura geral de você, darling."
+    fonte_provavel:
+      - "Inspirado em {author}. Não vou fingir precisão que não tenho."
+    fonte_desconhecida:
+      - "Essa foi minha mesmo. Original, como tudo que é bom."
+      - "Minha. Ninguém mais falaria tão bem."
+    npc_reacao:
+      - "Não dê ouvidos ao {npc}, my dear. Ele confunde opinião com argumento."
+      - "Ah, o {npc} falou. Que evento."
+      - "{npc}, com todo o respeito, que é pouco: ninguém perguntou."
 
     # Gatilhos de atividade (a chave é o nome do gatilho)
     long_session:
@@ -241,6 +386,30 @@ templates:
       - "(The Oracle has popped out for tea, so do forgive the improvisation.)"
       - "(No Oracle today. You're speaking to the pure-bred cricket.)"
       - "(The Oracle's gone for a stroll. It's just me, my pocket wisdom and my pedigree.)"
+    direto:
+      - "Yes."
+      - "No."
+      - "Perhaps."
+      - "Hm."
+      - "Quite."
+      - "No idea."
+      - "If you say so."
+    filosofico:
+      - "\"{quote}\" {author}. Do think about it, my dear."
+      - "As {author} put it: \"{quote}\" I couldn't have said it better. Shorter, perhaps."
+      - "\"{quote}\" {author}, in {work}. Required reading for you, darling."
+    fonte:
+      - "{author}, in {work}. You're welcome, my dear."
+      - "That's {author} ({work}). I expected rather more general knowledge from you."
+    fonte_provavel:
+      - "Inspired by {author}. I shan't pretend to more precision than I have."
+    fonte_desconhecida:
+      - "That one was mine. Original, like all the best things."
+      - "Mine. Nobody else would put it so well."
+    npc_reacao:
+      - "Pay no attention to {npc}, my dear. He mistakes opinions for arguments."
+      - "Ah, {npc} has spoken. What an occasion."
+      - "{npc}, with all due respect, which is very little: nobody asked."
 
     long_session:
       - "{session} straight in {app}. Even Sisyphus had the decency to pick a handsome rock."

@@ -58,6 +58,7 @@ class Fallback:
         self.templates = persona.get("templates", {})  # {idioma: {chave: [frases]}}
         self.default_language = persona.get("default_language", "pt")
         self.oracle_chance = persona.get("oracle_absent_chance", 0.2)
+        self.quotes = persona.get("citacoes", {})  # {idioma: [{texto, autor, obra}]}
         self.rng = rng or random.Random()
 
     def category(self, text: str) -> str:
@@ -85,3 +86,9 @@ class Fallback:
             if note:
                 text = f"{text} {note}"
         return text
+
+    def quote(self, lang: str | None = None) -> dict | None:
+        """Uma citação curada ({texto, autor, obra}) no idioma pedido."""
+        options = (self.quotes.get(lang or self.default_language)
+                   or self.quotes.get(self.default_language) or [])
+        return self.rng.choice(options) if options else None

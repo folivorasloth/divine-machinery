@@ -6,7 +6,11 @@ e reagem ao que eu faço. Todos se comunicam por um broker MQTT. Tudo local, nad
 O primeiro personagem é o **Grilo Falante**: um grilo britânico esnobe, "educado em Oxford",
 preso no seu computador e sussurrando comentários no seu ouvido. Sarcástico, filosófico e
 impecavelmente condescendente: ele zoa, mas acerta na crítica. Fala português (com pitadas
-de inglês) e troca para inglês britânico quando você fala em inglês.
+de inglês) e troca para inglês britânico quando você fala em inglês. Nem toda resposta é
+patada: às vezes ele só responde, às vezes filosofa, e dá para alimentá-lo com livros de
+filosofia. Ele também conversa (e briga) com os outros personagens.
+
+> Contexto completo do projeto para uma nova sessão com o Claude: [`CLAUDE.md`](CLAUDE.md).
 
 ```
  Notebook pessoal                      Homelab (VM Ubuntu + Docker)           Notebook do LLM
@@ -43,6 +47,7 @@ mosquitto/mosquitto.conf  listener 1883 + websocket 9001, anônimo (só rede loc
 config.example.yaml       modelo de configuração → copie para config.yaml
 common/                   compartilhado por todos os NPCs
   config.py               carrega config.yaml
+  conversation.py         regras para um NPC responder a outro (sem loop infinito)
   language.py             detecta português x inglês
   text.py                 normalização de texto (acentos, minúsculas)
   bus.py                  MqttBus (paho 2.x) e FakeBus (em memória, p/ --offline)
@@ -51,11 +56,15 @@ common/                   compartilhado por todos os NPCs
 grilo/
   main.py                 loop principal + modo --offline
   mood.py                 humor e decaimento
-  brain.py                decide: silêncio, LLM ou fallback
+  brain.py                decide: silêncio, LLM ou fallback; modos; memória de fontes
+  library.py              busca trechos nos livros (biblioteca de filosofia)
+  ingest.py               indexa os livros da pasta library/
   llm.py                  cliente Ollama com timeout
   fallback.py             detecção de categoria + templates
   triggers.py             gatilhos de atividade + cooldowns
-persona/grilo.yaml        personalidade, exemplos, palavras-chave, templates, efeitos no humor
+persona/grilo.yaml        personalidade, modos, citações, palavras-chave, templates, efeitos no humor
+persona/cast.yaml         elenco: quem é quem (todos os NPCs leem)
+library/                  seus livros de filosofia + índice (fora do git)
 publisher/aw_publisher.py ActivityWatch → MQTT (notebook pessoal)
 cli/chat.py               terminal para conversar
 tests/                    testes de humor, gatilhos e fallback
@@ -88,6 +97,8 @@ você> /humor
 você> /app VS Code 150      ← "estou há 150 min no VS Code"
 você> /app Firefox youtube  ← distração
 você> /afk 40               ← "voltei depois de 40 min"
+você> /npc hefesto o grilo é um inseto   ← outro personagem falando
+você> /fontes               ← de onde vieram as últimas citações
 ```
 
 > Os comandos rodam a partir da raiz do repositório (`python -m pasta.arquivo`),
@@ -267,6 +278,55 @@ mosquitto_pub -h IP_DO_HOMELAB -t joao/fala -m "esse grilo só fala bosta"
 **Gatilhos espontâneos:** sessão longa no mesmo app, volta de AFK, madrugada e distração.
 Cada um tem um `cooldown_minutes`, e há um teto global `global_max_per_hour`. Dispara no
 máximo um gatilho por atualização. Emburrado, ele ignora os gatilhos.
+
+## Modos de resposta
+
+A cada resposta ele sorteia um modo, com pesos que dependem do humor (`response_modes` na persona):
+
+| Modo | Como responde | Padrão (humor normal) |
+|---|---|---|
+| debochado | o grilo de sempre | 60 |
+| direto | curto e sem piada: "Sim.", "Às três." | 25 |
+| filosofico | reflexão de verdade, até 5 frases, com trechos dos seus livros | 15 |
+
+Irritado, ele retruca com filosofia 30% das vezes; em modo retruque, só deboche. Falar de
+filosofia (Nietzsche, estoicismo, sentido da vida...) força o modo filosófico.
+
+## Biblioteca de filosofia
+
+1. Baixe o modelo de embedding no notebook do LLM: `ollama pull bge-m3`.
+2. Coloque os livros em `library/` no homelab, com nome `Autor - Título.epub` (ou `.txt`, `.md`, `.pdf`).
+3. Com o notebook do LLM ligado, indexe e reinicie o grilo:
+   ```bash
+   docker compose run --rm grilo python -m grilo.ingest
+   ```
+   ```bash
+   docker compose restart grilo
+   ```
+
+No modo filosófico ele busca os 3 trechos mais parecidos com a conversa e os põe no prompt.
+Sem o Ollama, usa as citações curadas de `citacoes` na persona.
+
+## Memória de fontes ("de quem é essa frase?")
+
+Quando uma fala vem de um livro ou de uma citação, o grilo guarda a origem. O LLM marca o trecho
+que usou com `[[N]]`, o código troca isso pelo autor e livro e tira a marca do texto. As últimas
+falas citadas e suas fontes vão em todo prompt seguinte. Por isso "de quem é essa frase?" é
+respondido com o que está registrado, e não com o que o modelo acha. Sem o LLM, a resposta sai
+direto da memória. Se a frase foi dele mesmo, ele diz que é dele.
+
+## Conversa entre personagens
+
+Todo NPC assina `npc/+/fala`, então ouve os outros. Cada fala leva no `meta` com quem fala
+(`to`) e a profundidade da conversa (`depth`). O grilo:
+- responde sempre que falam com ele ou citam o nome dele;
+- senão, se mete por sorteio, com chance que depende do humor (`npc_reaction_chance`: 30% normal,
+  70% irritado, 0 emburrado) e um cooldown por personagem;
+- para depois de `conversation.max_depth` falas encadeadas (3), o que garante que dois NPCs
+  nunca entrem em loop;
+- guarda tudo na memória curta como `[Hefesto, para João]: ...`, para entender o contexto depois.
+
+Quem é quem fica em `persona/cast.yaml`. Um personagem novo entra lá primeiro.
 
 ## Idioma
 

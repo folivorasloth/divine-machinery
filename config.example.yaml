@@ -14,10 +14,14 @@ ollama:
   offline_cooldown_seconds: 60     # depois de uma falha, nem tenta por esse tempo
   temperature: 0.9
   keep_alive: 30m                  # mantém o modelo na memória (o 1º carregamento é lento)
+  num_ctx: 8192                    # contexto em tokens; o padrão do Ollama corta prompts longos
+  embed_model: bge-m3              # embeddings da biblioteca (multilíngue: pt + en)
 
 grilo:
   persona_file: persona/grilo.yaml
-  short_memory: 10       # últimas N mensagens que entram no contexto do LLM
+  short_memory: 20       # últimas N mensagens que entram no contexto do LLM
+  source_memory: 5       # quantas falas citadas ele lembra de onde vieram
+  cast_file: persona/cast.yaml
   recent_activity: 5     # últimos N apps que entram no contexto
   tick_seconds: 5        # de quanto em quanto tempo aplica decaimento e publica humor
 
@@ -53,6 +57,17 @@ triggers:
       - TikTok
       - Netflix
       - Steam
+
+philosophy:              # modo filosófico e biblioteca de livros
+  library_dir: library   # coloque os livros aqui; o índice fica em library/index/
+  passages: 3            # trechos de livro por resposta
+  chunk_words: 300       # tamanho de cada trecho na indexação
+  timeout_seconds: 20    # o modo filosófico pode pensar mais
+  max_tokens: 250        # e falar mais
+
+conversation:            # NPCs conversando entre si
+  max_depth: 3           # máximo de falas de NPC encadeadas (evita loop infinito)
+  cooldown_seconds: 60   # intervalo mínimo para reagir de novo ao mesmo NPC sem ser chamado
 
 tts:                     # usado pelo cli/chat.py (e pelo --offline), na máquina com caixa de som
   enabled: false

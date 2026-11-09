@@ -25,6 +25,7 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./persona:/app/persona:ro
+      - ./library:/app/library      # livros + índice (o ingest escreve aqui)
 
 volumes:
   mosquitto-data:
